@@ -1,0 +1,926 @@
+﻿<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MapIt - Pro Dashboard</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        /* APPLE LIGHT MODE */
+        :root {
+            --bg-color: #f2f2f7; 
+            --window-bg: #ffffff;
+            --ocean-color: #e0eaff;
+            --glass-bg: rgba(255, 255, 255, 0.55);
+            --glass-border: rgba(255, 255, 255, 0.8);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.06), inset 0 0 0 0.5px rgba(255, 255, 255, 0.5);
+            --text-color: #1d1d1f;
+            --text-muted: #86868b;
+            --btn-bg: #1d1d1f;
+            --btn-text: #ffffff;
+            --color-green: #34c759;
+            --color-blue: #007aff;
+            --color-red: #ff3b30;
+        }
+
+        /* APPLE DARK MODE */
+        body.dark-mode {
+            --bg-color: #000000;
+            --window-bg: #1c1c1e;
+            --ocean-color: #0a0a0f; 
+            --glass-bg: rgba(30, 30, 30, 0.55);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+            --text-color: #f5f5f7;
+            --text-muted: #86868b;
+            --btn-bg: #f5f5f7;
+            --btn-text: #1d1d1f;
+            --color-green: #32d74b;
+            --color-blue: #0a84ff;
+            --color-red: #ff453a;
+        }
+
+        body, html { 
+            margin: 0; padding: 0; height: 100%; 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif; 
+            background-color: var(--bg-color); color: var(--text-color);
+            transition: background-color 0.5s ease, color 0.5s ease;
+            display: flex; flex-direction: column; overflow-x: hidden; -webkit-font-smoothing: antialiased;
+        }
+
+        .leaflet-container { background: var(--ocean-color) !important; transition: background 0.5s ease; }
+
+        /* HUD */
+        .hud {
+            position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+            width: 96%; max-width: 1800px; padding: 10px 24px; box-sizing: border-box;
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--glass-bg); backdrop-filter: blur(40px) saturate(150%); -webkit-backdrop-filter: blur(40px) saturate(150%);
+            border: 0.5px solid var(--glass-border); border-radius: 40px; 
+            box-shadow: var(--glass-shadow); z-index: 1000; transition: background 0.5s, border 0.5s;
+        }
+
+        .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+        .controls { display: flex; align-items: center; gap: 12px; }
+        
+        .interactive-btn { cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
+        .interactive-btn:active { transform: scale(0.92); }
+        .interactive-btn:hover { filter: brightness(1.1); }
+
+        /* Vylepšené ikony s pop-up efektem */
+        .icon-btn { 
+            background: var(--glass-bg); border: 0.5px solid var(--glass-border); 
+            font-size: 20px; display: flex; align-items: center; justify-content: center; 
+            width: 44px; height: 44px; border-radius: 22px; box-shadow: var(--glass-shadow);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s, filter 0.3s; 
+        }
+        .icon-btn:hover { transform: scale(1.12); }
+        .icon-btn:active { transform: scale(0.95); }
+
+        .lang-btn { font-size: 15px; font-weight: 600; color: var(--text-color); background: var(--glass-bg); border: 0.5px solid var(--glass-border); border-radius: 20px; padding: 8px 16px; box-shadow: var(--glass-shadow); }
+        .login-btn { padding: 10px 20px; background-color: var(--btn-bg); color: var(--btn-text); border: none; border-radius: 20px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .premium-btn { padding: 10px 20px; background: linear-gradient(135deg, #FFDF00, #D4AF37); color: #000000; border: none; border-radius: 20px; font-weight: 700; font-size: 15px; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4); }
+        
+        .avatar { 
+            width: 40px; height: 40px; background: var(--glass-bg); border: 0.5px solid var(--glass-border); 
+            border-radius: 50%; display: flex; justify-content: center; align-items: center; 
+            font-size: 18px; font-weight: 700; box-shadow: var(--glass-shadow); 
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .avatar:hover { transform: scale(1.12); }
+
+        /* Měsíc SVG */
+        .moon-container { position: relative; width: 24px; height: 24px; }
+        .icon-dark-moon, .icon-light-moon { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; }
+        .icon-dark-moon { z-index: 1; }
+        .icon-light-moon { z-index: 2; clip-path: circle(150% at 50% 50%); transition: clip-path 0.7s cubic-bezier(0.4, 0, 0.2, 1); }
+        body:not(.dark-mode) .icon-light-moon { clip-path: circle(0% at 0% 50%); }
+
+        /* Hlavní kontejner */
+        .main-content { width: 100%; padding: 0 2%; box-sizing: border-box; margin-top: 105px; display: flex; flex-direction: column; gap: 24px; flex-grow: 1; padding-bottom: 34px; }
+        .map-window { width: 100%; flex-grow: 1; min-height: 65vh; background-color: var(--window-bg); border: 0.5px solid var(--glass-border); border-radius: 36px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08); transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1); position: relative; display: flex; overflow: hidden; }
+        .map-window.maximized { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; min-height: 100vh; z-index: 9999; border-radius: 0; border: none; margin: 0; }
+        #map { height: 100%; width: 100%; border-radius: inherit; z-index: 1; }
+        
+        .glass-btn-corner { 
+            position: absolute; top: 24px; right: 24px; z-index: 1000; 
+            background: var(--glass-bg); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); 
+            border: 0.5px solid var(--glass-border); border-radius: 16px; width: 44px; height: 44px; 
+            display: flex; justify-content: center; align-items: center; font-size: 20px; color: var(--text-color); 
+            box-shadow: var(--glass-shadow); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .glass-btn-corner:hover { transform: scale(1.1); }
+        
+        .leaflet-bar { border: none !important; box-shadow: var(--glass-shadow) !important; border-radius: 16px !important; overflow: hidden; }
+        .leaflet-bar a { background: var(--glass-bg) !important; color: var(--text-color) !important; backdrop-filter: blur(20px) saturate(150%) !important; border-bottom: 0.5px solid var(--glass-border) !important; width: 44px !important; height: 44px !important; line-height: 44px !important; font-size: 20px !important; font-weight: 500 !important; }
+        .leaflet-bar a:hover { background: var(--window-bg) !important; }
+        .leaflet-bar a:last-child { border-bottom: none !important; }
+        .leaflet-control-zoom { margin-right: 24px !important; margin-bottom: 24px !important; }
+
+        .legend { display: flex; justify-content: center; gap: 32px; flex-wrap: wrap; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(150%); -webkit-backdrop-filter: blur(40px) saturate(150%); border: 0.5px solid var(--glass-border); border-radius: 28px; align-self: center; padding: 16px 36px; box-shadow: var(--glass-shadow); transition: background-color 0.5s; }
+        .legend-item { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+        .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }
+        .dot.green { background-color: var(--color-green); }
+        .dot.blue { background-color: var(--color-blue); }
+        .dot.red { background-color: var(--color-red); }
+
+        /* Modální okna */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 999999; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.4s ease; }
+        .modal-overlay.active { opacity: 1; }
+        .modal-content { background: var(--glass-bg); border: 0.5px solid var(--glass-border); border-radius: 32px; padding: 36px; text-align: center; box-shadow: 0 24px 64px rgba(0,0,0,0.2); width: 320px; transform: scale(0.95) translateY(10px); transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1); backdrop-filter: blur(40px) saturate(150%); -webkit-backdrop-filter: blur(40px) saturate(150%); }
+        .modal-overlay.active .modal-content { transform: scale(1) translateY(0); }
+        .modal-title { margin: 0 0 24px 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+        .modal-btn { display: block; width: 100%; padding: 14px; margin-bottom: 12px; border: none; border-radius: 16px; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: white; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .btn-green { background-color: var(--color-green); color: black; box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3); }
+        .btn-blue { background-color: var(--color-blue); box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3); }
+        .btn-red { background: var(--glass-bg); color: var(--text-color); border: 0.5px solid var(--glass-border); box-shadow: var(--glass-shadow); } 
+        .btn-clear { background: transparent; border: 1.5px solid var(--text-muted); color: var(--text-color); margin-top: 24px; }
+        .leaflet-control-attribution { display: none; }
+
+        /* Toast Notifikace */
+        .toast { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background: var(--glass-bg); backdrop-filter: blur(40px) saturate(150%); border: 0.5px solid var(--glass-border); padding: 14px 28px; border-radius: 30px; color: var(--text-color); font-weight: 600; box-shadow: var(--glass-shadow); transition: bottom 0.5s cubic-bezier(0.25, 1, 0.5, 1); z-index: 1000000; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+        .toast.show { bottom: 40px; }
+        .toast.error { color: var(--color-red); }
+
+        /* CELOPLOŠNÉ PŘEKRYVNÉ STRÁNKY */
+        .page-overlay { position: fixed; top: 100vh; left: 0; width: 100vw; height: 100vh; background: var(--bg-color); z-index: 100000; transition: top 0.6s cubic-bezier(0.32, 0.72, 0, 1); display: flex; flex-direction: column; align-items: center; justify-content: center; overflow-y: auto; }
+        .page-overlay.active { top: 0; }
+        
+        .register-link { display: block; margin-top: 16px; font-size: 15px; font-weight: 500; color: var(--color-blue); cursor: pointer; transition: opacity 0.2s; }
+        .register-link:hover { opacity: 0.7; }
+
+        .login-box { background: var(--window-bg); border: 0.5px solid var(--glass-border); border-radius: 40px; padding: 48px; width: 90%; max-width: 420px; text-align: center; box-shadow: 0 20px 80px rgba(0,0,0,0.08); }
+        .login-box h2 { font-size: 32px; margin-bottom: 8px; font-weight: 700; letter-spacing: -0.02em; }
+        .login-box p { color: var(--text-muted); margin-bottom: 32px; font-size: 16px; }
+        .input-field { width: 100%; padding: 16px; margin-bottom: 16px; border: 1px solid var(--glass-border); border-radius: 16px; background: var(--bg-color); color: var(--text-color); box-sizing: border-box; font-size: 16px; transition: border 0.3s; }
+        .input-field:focus { outline: none; border-color: var(--color-blue); }
+        
+        .premium-container { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; width: 95%; max-width: 1200px; margin-top: 40px; }
+        .pricing-card { background: var(--window-bg); border: 0.5px solid var(--glass-border); border-radius: 40px; padding: 48px 32px; width: 100%; max-width: 340px; box-sizing: border-box; text-align: center; box-shadow: 0 20px 80px rgba(0,0,0,0.06); position: relative; display: flex; flex-direction: column; }
+        .pricing-card.plus { border: 1.5px solid #007aff; background: linear-gradient(180deg, var(--window-bg) 0%, rgba(0, 122, 255, 0.03) 100%); }
+        .pricing-card.gold { border: 1.5px solid #D4AF37; background: linear-gradient(180deg, var(--window-bg) 0%, rgba(212, 175, 55, 0.03) 100%); }
+        
+        .pricing-card h3 { font-size: 26px; margin-bottom: 8px; letter-spacing: -0.02em; }
+        .price { font-size: 46px; font-weight: 800; margin: 16px 0 28px 0; letter-spacing: -0.03em; }
+        .price span { font-size: 18px; color: var(--text-muted); font-weight: 600; letter-spacing: normal; }
+        
+        .features { list-style: none; padding: 0; margin-bottom: 32px; text-align: left; flex-grow: 1; }
+        .features li { margin-bottom: 14px; font-size: 15px; display: flex; gap: 12px; line-height: 1.4; color: var(--text-color); }
+        .features li::before { content: "✓"; color: var(--color-green); font-weight: 800; flex-shrink: 0; }
+        
+        .free-trial-text { display: block; font-size: 14px; font-weight: 600; color: var(--color-blue); margin-bottom: 12px; cursor: text; margin-top: auto; }
+
+        .buy-btn { width: 100%; padding: 16px; border-radius: 20px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; border: none; }
+        .buy-free { background: var(--bg-color); color: var(--text-color); border: 0.5px solid var(--glass-border); cursor: default; margin-top: auto; }
+        .buy-plus { background: #007aff; color: white; box-shadow: 0 8px 24px rgba(0, 122, 255, 0.3); }
+        .buy-gold { background: linear-gradient(135deg, #FFDF00, #D4AF37); color: #000; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3); }
+        .badge { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); background: #D4AF37; color: #000; padding: 6px 18px; border-radius: 20px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4); }
+
+        /* Profil Cestovatele */
+        .profile-container { background: var(--window-bg); border: 0.5px solid var(--glass-border); border-radius: 40px; padding: 50px; width: 90%; max-width: 600px; text-align: center; box-shadow: 0 24px 80px rgba(0,0,0,0.08); }
+        .profile-avatar-large { width: 100px; height: 100px; background: var(--glass-bg); border: 0.5px solid var(--glass-border); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 44px; margin: 0 auto 24px auto; box-shadow: var(--glass-shadow); font-weight: 700; color: var(--text-color); }
+        .profile-container h2 { font-size: 32px; margin-bottom: 8px; letter-spacing: -0.02em; }
+        
+        .plan-badge-profile { padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 700; display: inline-block; margin-bottom: 32px; transition: all 0.3s ease; }
+        .plan-badge-profile.free { background: var(--bg-color); border: 0.5px solid var(--glass-border); color: var(--text-muted); }
+        .plan-badge-profile.plus { background: #007aff; border: none; color: white; box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3); }
+        .plan-badge-profile.gold { background: linear-gradient(135deg, #FFDF00, #D4AF37); border: none; color: black; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4); }
+
+        .stats-grid { display: flex; justify-content: center; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+        .stat-box { background: var(--bg-color); border: 0.5px solid var(--glass-border); border-radius: 24px; padding: 24px; flex: 1; min-width: 120px; display: flex; flex-direction: column; align-items: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
+        .stat-num { font-size: 40px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.03em; }
+        .stat-num.green { color: var(--color-green); }
+        .stat-num.blue { color: var(--color-blue); }
+        .stat-num.red { color: var(--color-red); }
+        .stat-label { font-size: 12px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        .settings-btn { width: 100%; padding: 16px; margin-bottom: 12px; border: 0.5px solid var(--glass-border); border-radius: 16px; font-size: 16px; font-weight: 600; background: var(--bg-color); color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: all 0.3s ease; }
+        .settings-btn.logout { color: var(--color-red); background: transparent; }
+        /* Červený glow effect pro tlačítko odhlášení */
+        .settings-btn.logout:hover { 
+            background: rgba(255, 59, 48, 0.08); 
+            border-color: var(--color-red); 
+            box-shadow: 0 0 16px rgba(255, 59, 48, 0.35); 
+        }
+
+        /* NASTAVENÍ ZÁLOŽEK */
+        .settings-wrapper { background: var(--window-bg); border: 0.5px solid var(--glass-border); border-radius: 40px; padding: 48px; width: 90%; max-width: 700px; box-shadow: 0 24px 80px rgba(0,0,0,0.08); text-align: left; }
+        .tabs-header { display: flex; gap: 12px; margin-bottom: 32px; border-bottom: 0.5px solid var(--glass-border); padding-bottom: 16px; overflow-x: auto; }
+        .tab-btn { background: transparent; border: none; font-size: 17px; font-weight: 600; color: var(--text-muted); cursor: pointer; padding: 10px 18px; border-radius: 16px; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); white-space: nowrap; }
+        .tab-btn:hover { color: var(--text-color); }
+        .tab-btn.active { background: var(--text-color); color: var(--bg-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .tab-content { display: none; animation: fadeIn 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* iOS-STYLE PŘEPÍNAČ */
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 30px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--glass-border); transition: .3s cubic-bezier(0.25, 1, 0.5, 1); border-radius: 30px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .toggle-slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 2px; bottom: 2px; background-color: white; transition: .3s cubic-bezier(0.25, 1, 0.5, 1); border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        input:checked + .toggle-slider { background-color: var(--color-green); }
+        input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+        .lang-selector-settings { display: flex; gap: 12px; margin-bottom: 24px; }
+        .lang-opt { padding: 12px 24px; border-radius: 16px; border: 0.5px solid var(--glass-border); background: var(--bg-color); color: var(--text-color); font-size: 16px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        .lang-opt.active { border: 1.5px solid var(--color-blue); background: rgba(0, 122, 255, 0.08); color: var(--color-blue); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="dark-mode">
+
+    <!-- TOAST NOTIFIKACE -->
+    <div id="toast" class="toast">
+        <span id="toastIcon">✅</span>
+        <span id="toastMessage">Změny uloženy</span>
+    </div>
+
+    <div class="hud">
+        <div class="logo">MapIt</div>
+        <div class="controls">
+            <button class="lang-btn interactive-btn" id="langToggle" title="Změnit jazyk">🇨🇿 CZ</button>
+            <button class="icon-btn interactive-btn theme-toggle" id="themeToggle" title="Přepnout režim">
+                <div class="moon-container">
+                    <svg class="icon-dark-moon" viewBox="0 0 100 100"><defs><radialGradient id="darkGrad" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#8b5cf6" /><stop offset="100%" stop-color="#4c1d95" /></radialGradient><radialGradient id="craterDark" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#3b0764" /><stop offset="100%" stop-color="#5b21b6" /></radialGradient></defs><circle cx="50" cy="50" r="50" fill="url(#darkGrad)" /><circle cx="30" cy="40" r="10" fill="url(#craterDark)" opacity="0.6"/><circle cx="65" cy="25" r="7" fill="url(#craterDark)" opacity="0.6"/><circle cx="55" cy="70" r="12" fill="url(#craterDark)" opacity="0.6"/><circle cx="25" cy="75" r="6" fill="url(#craterDark)" opacity="0.6"/></svg>
+                    <svg class="icon-light-moon" viewBox="0 0 100 100"><defs><radialGradient id="lightGrad" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#fef08a" /><stop offset="100%" stop-color="#eab308" /></radialGradient><radialGradient id="craterLight" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ca8a04" /><stop offset="100%" stop-color="#eab308" /></radialGradient></defs><circle cx="50" cy="50" r="50" fill="url(#lightGrad)" /><circle cx="30" cy="40" r="10" fill="url(#craterLight)" opacity="0.5"/><circle cx="65" cy="25" r="7" fill="url(#craterLight)" opacity="0.5"/><circle cx="55" cy="70" r="12" fill="url(#craterLight)" opacity="0.5"/><circle cx="25" cy="75" r="6" fill="url(#craterLight)" opacity="0.5"/></svg>
+                </div>
+            </button>
+            <button class="premium-btn interactive-btn" onclick="openPage('premiumPage')" data-i18n="premiumBtn">Další výhody</button>
+            <button class="login-btn interactive-btn" id="navLoginBtn" onclick="openPage('loginPage')" data-i18n="loginBtn">Přihlásit se</button>
+            <div class="avatar interactive-btn" id="navAvatar" onclick="handleAvatarClick()">👤</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="map-window" id="mapWindow">
+            <div id="map"></div>
+            <button class="glass-btn-corner interactive-btn" id="fsBtn" title="Na celou obrazovku">⛶</button>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item"><span class="dot green"></span><span data-i18n="legendGreen">Žiju / Žil jsem</span></div>
+            <div class="legend-item"><span class="dot blue"></span><span data-i18n="legendBlue">Navštívil jsem</span></div>
+            <div class="legend-item"><span class="dot red"></span><span data-i18n="legendRed">Wishlist (Plus)</span></div>
+        </div>
+    </div>
+
+    <!-- Modální okno pro vybarvení -->
+    <div class="modal-overlay" id="actionModal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2 class="modal-title" id="modalTitle">Název země</h2>
+            <button class="modal-btn btn-green interactive-btn" onclick="setCountryColor('green')" data-i18n="modalGreen">Žiju / Žil jsem</button>
+            <button class="modal-btn btn-blue interactive-btn" onclick="setCountryColor('blue')" data-i18n="modalBlue">Navštívil jsem</button>
+            <button class="modal-btn btn-red interactive-btn" id="wishlistBtn" onclick="triggerPremiumGate()" data-i18n="modalRedLocked">🔒 Wishlist</button>
+            <button class="modal-btn btn-clear interactive-btn" onclick="setCountryColor('clear')" data-i18n="modalClear">Smazat barvu</button>
+        </div>
+    </div>
+    
+    <!-- ODHLÁŠENÍ POTVRZOVACÍ OKNO -->
+    <div class="modal-overlay" id="logoutModal" onclick="cancelLogout(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2 class="modal-title" data-i18n="logoutTitle">Odhlášení</h2>
+            <p style="color:var(--text-muted); margin-bottom: 25px;" data-i18n="logoutText">Opravdu se chceš odhlásit?</p>
+            <button class="modal-btn interactive-btn" style="background: var(--color-red); color: white;" onclick="confirmLogout()" data-i18n="logoutConfirm">Ano, odhlásit</button>
+            <button class="modal-btn btn-clear interactive-btn" onclick="cancelLogout()" style="margin-top: 10px;" data-i18n="logoutCancel">Zrušit</button>
+        </div>
+    </div>
+
+    <!-- STRÁNKA: LOG IN / REGISTRACE -->
+    <div class="page-overlay" id="loginPage">
+        <button class="glass-btn-corner interactive-btn" style="z-index: 100001;" onclick="closePage('loginPage')">✖</button>
+        <div class="login-box">
+            <h2 id="authTitle" data-i18n="loginTitle">Vítej zpět!</h2>
+            <p id="authSub" data-i18n="loginSub">Přihlas se a ulož si svou mapu.</p>
+            
+            <input type="text" id="authNameField" class="input-field hidden" placeholder="Jméno" data-i18n-ph="namePh">
+            <input type="email" id="authEmailField" class="input-field" placeholder="Email" data-i18n-ph="emailPh">
+            <input type="password" id="authPassField" class="input-field" placeholder="Heslo" data-i18n-ph="passPh">
+            
+            <button class="buy-btn buy-gold interactive-btn" id="authSubmitBtn" style="margin-bottom: 10px;" onclick="submitAuth()" data-i18n="loginBtn">Přihlásit se</button>
+            
+            <a class="register-link" id="authToggleLink" onclick="toggleAuthMode()" data-i18n="noAccount">Nemáš účet? Zaregistrovat se</a>
+        </div>
+    </div>
+
+    <!-- STRÁNKA: PROFIL CESTOVATELE -->
+    <div class="page-overlay" id="profilePage">
+        <button class="glass-btn-corner interactive-btn" style="z-index: 100001;" onclick="closePage('profilePage')">✖</button>
+        <div class="profile-container">
+            <div class="profile-avatar-large" id="profileAvatar">👤</div>
+            <h2 id="profileNameDisplay">Tvé Jméno</h2>
+            <div class="plan-badge-profile free" id="profilePlanBadge" data-i18n="freeTitle">Základní Mapa</div>
+            
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <span class="stat-num green" id="statLived">0</span>
+                    <span class="stat-label" data-i18n="statGreen">Žiju / Žil jsem</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-num blue" id="statVisited">0</span>
+                    <span class="stat-label" data-i18n="statBlue">Navštíveno</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-num red" id="statWishlist">0</span>
+                    <span class="stat-label" data-i18n="statRed">Wishlist</span>
+                </div>
+            </div>
+
+            <button class="settings-btn interactive-btn" onclick="openPage('settingsPage')" data-i18n="profSettings">⚙️ Nastavení účtu</button>
+            <button class="settings-btn interactive-btn" onclick="openPage('premiumPage')" data-i18n="profUpgrade">⭐ Upgradovat plán</button>
+            <button class="settings-btn logout interactive-btn" onclick="requestLogout()" data-i18n="profLogout">Odhlásit se</button>
+        </div>
+    </div>
+
+    <!-- STRÁNKA: NASTAVENÍ ÚČTU -->
+    <div class="page-overlay" id="settingsPage">
+        <button class="glass-btn-corner interactive-btn" style="z-index: 100001;" onclick="closePage('settingsPage')">✖</button>
+        <div class="settings-wrapper">
+            <h2 style="margin-top:0; font-size: 32px; text-align: center; margin-bottom: 36px; letter-spacing: -0.02em;" data-i18n="profSettingsTitle">Nastavení účtu</h2>
+
+            <div class="tabs-header">
+                <button class="tab-btn active interactive-btn" onclick="switchTab('tab-account')" data-i18n="tabAccount">Můj účet</button>
+                <button class="tab-btn interactive-btn" onclick="switchTab('tab-prefs')" data-i18n="tabPrefs">Předvolby</button>
+                <button class="tab-btn interactive-btn" onclick="switchTab('tab-billing')" data-i18n="tabBilling">Fakturace</button>
+            </div>
+
+            <div class="tab-content active" id="tab-account">
+                <label style="display: block; margin-bottom: 10px; color: var(--text-muted); font-size: 15px; font-weight: 500;" data-i18n="nameLabel">Jméno zobrazené na profilu</label>
+                <input type="text" id="settingName" class="input-field" data-i18n-ph="namePh">
+                
+                <label style="display: block; margin-bottom: 10px; margin-top: 20px; color: var(--text-muted); font-size: 15px; font-weight: 500;" data-i18n="emailLabel">E-mailová adresa (pro přihlášení)</label>
+                <input type="email" id="settingEmail" class="input-field" data-i18n-ph="emailPh" disabled style="opacity:0.5; cursor:not-allowed;">
+                
+                <div style="display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap;">
+                    <button class="buy-btn buy-plus interactive-btn" style="width: auto; padding: 14px 28px;" onclick="saveUserSettings()" data-i18n="saveBtn">Uložit změny</button>
+                    <button class="settings-btn interactive-btn" style="width: auto; padding: 14px 28px; margin-bottom: 0;" onclick="triggerPasswordReset()" data-i18n="resetPassBtn">Resetovat heslo</button>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-prefs">
+                <p style="font-weight: 600; font-size: 18px; margin-bottom: 16px;" data-i18n="prefLang">Jazyk aplikace</p>
+                <div class="lang-selector-settings">
+                    <button class="lang-opt interactive-btn active" onclick="setLanguage('cs')" id="setLangCs">🇨🇿 Čeština</button>
+                    <button class="lang-opt interactive-btn" onclick="setLanguage('en')" id="setLangEn">🇬🇧 English</button>
+                </div>
+                
+                <hr style="border: none; border-top: 0.5px solid var(--glass-border); margin: 36px 0;">
+
+                <p style="font-weight: 600; font-size: 18px; margin-bottom: 20px;" data-i18n="prefNotif">Upozornění</p>
+                <label style="display: flex; align-items: center; gap: 16px; cursor: pointer; color: var(--text-color); font-size: 16px;">
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="settingNotif" onchange="saveUserSettings()">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span data-i18n="notifEmail">Dostávat e-maily o novinkách a tipech na cesty</span>
+                </label>
+            </div>
+
+            <div class="tab-content" id="tab-billing">
+                <div style="background: var(--bg-color); border: 0.5px solid var(--glass-border); border-radius: 20px; padding: 24px; margin-bottom: 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+                    <h3 id="billingPlanName" style="margin-top:0; margin-bottom: 8px; font-size:20px; font-weight: 700;">Aktuální plán: Základní Mapa</h3>
+                    <p id="billingPlanSub" style="color:var(--text-muted); font-size:15px; margin:0;" data-i18n="freeSub">Ideální start pro každého</p>
+                </div>
+                <button class="buy-btn buy-gold interactive-btn" onclick="openPage('premiumPage')" data-i18n="profUpgrade">⭐ Upgradovat plán</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STRÁNKA: PREMIUM PLÁNY -->
+    <div class="page-overlay" id="premiumPage">
+        <button class="glass-btn-corner interactive-btn" style="z-index: 100001;" onclick="closePage('premiumPage')">✖</button>
+        <h1 style="font-size: 40px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 48px; text-align:center;" data-i18n="planTitle">Vyber si svou cestu</h1>
+        <div class="premium-container">
+            
+            <div class="pricing-card">
+                <h3 data-i18n="freeTitle">Základní Mapa</h3>
+                <p style="color:var(--text-muted);" data-i18n="freeSub">Ideální start pro každého</p>
+                <div class="price">0 € <span style="font-size: 18px;">/ <span data-i18n="month">měsíc</span></span></div>
+                <ul class="features">
+                    <li data-i18n="featFree1">Osobní interaktivní mapa světa</li>
+                    <li data-i18n="featFree2">2 barevné označení na mapě</li>
+                    <li data-i18n="featFree3">Osobní profil cestovatele</li>
+                    <li data-i18n="featFree4">Základní statistiky a počítadlo zemí na profilu</li>
+                </ul>
+                <button class="buy-btn buy-free" id="btnPlanFree" data-i18n="currentPlan">Tvůj plán</button>
+            </div>
+
+            <div class="pricing-card plus">
+                <h3>Plus</h3>
+                <p style="color:var(--text-muted);" data-i18n="plusSub">Pro plánování cest</p>
+                <div class="price">2.99 € <span style="font-size: 18px;">/ <span data-i18n="month">měsíc</span></span></div>
+                <ul class="features">
+                    <li style="font-weight: 700;" data-i18n="featPlus1">Vše z Free plánu</li>
+                    <li data-i18n="featPlus2">Odemyká funkci Wishlist</li>
+                    <li data-i18n="featPlus3">Sdílení a propojení map s přáteli</li>
+                    <li data-i18n="featPlus4">Neomezené množství přihlášených zařízení</li>
+                </ul>
+                <span class="free-trial-text" data-i18n="startTrialText">Začít 7 dní zdarma</span>
+                <button class="buy-btn buy-plus interactive-btn" id="btnPlanPlus" onclick="purchasePlan('plus')" data-i18n="upgradePlusBtn">Přejít na Plus</button>
+            </div>
+
+            <div class="pricing-card gold">
+                <div class="badge" data-i18n="badge">NEJOBLÍBENĚJŠÍ</div>
+                <h3>Premium</h3>
+                <p style="color:var(--text-muted);" data-i18n="premSub">Ultimátní cestovatelský zážitek</p>
+                <div class="price">4.99 € <span style="font-size: 18px;">/ <span data-i18n="month">měsíc</span></span></div>
+                <ul class="features">
+                    <li style="font-weight: 700;" data-i18n="featPrem1">Vše z Plus plánu</li>
+                    <li data-i18n="featPrem2">Společné wishlisty s přáteli</li>
+                    <li data-i18n="featPrem3">Tipy na zajímavá místa při přidání země do Wishlistu</li>
+                    <li data-i18n="featPrem4">Propoj cesty s live eventy</li>
+                </ul>
+                <span class="free-trial-text" data-i18n="startTrialText">Začít 7 dní zdarma</span>
+                <button class="buy-btn buy-gold interactive-btn" id="btnPlanPremium" onclick="purchasePlan('premium')" data-i18n="upgradePremBtn">Přejít na Premium</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Standardní skripty Leafletu -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- FIREBASE & HLAVNÍ LOGIKA JAKO MODUL -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCZjLfCB90HNTr1QbGtZFZaxRyrdMZ0weA",
+            authDomain: "mapit-5430b.firebaseapp.com",
+            projectId: "mapit-5430b",
+            storageBucket: "mapit-5430b.firebasestorage.app",
+            messagingSenderId: "456520555451",
+            appId: "1:456520555451:web:e26515e8899c7333cf829e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- STATE MANAGEMENT ---
+        let appState = {
+            loggedIn: false,
+            user: { uid: null, name: '', email: '' },
+            plan: 'free', 
+            notif: true
+        };
+        
+        let savedColors = {}; 
+        let geojsonLayer;
+        let currentSelectedLayer = null; 
+
+        // --- EXPORT FUNKCÍ DO HTML ---
+        window.openPage = openPage;
+        window.closePage = closePage;
+        window.switchTab = switchTab;
+        window.toggleAuthMode = toggleAuthMode;
+        window.submitAuth = submitAuth;
+        window.requestLogout = requestLogout;
+        window.cancelLogout = cancelLogout;
+        window.confirmLogout = confirmLogout;
+        window.handleAvatarClick = handleAvatarClick;
+        window.setLanguage = setLanguage;
+        window.saveUserSettings = saveUserSettings;
+        window.triggerPasswordReset = triggerPasswordReset;
+        window.purchasePlan = purchasePlan;
+        window.setCountryColor = setCountryColor;
+        window.triggerPremiumGate = triggerPremiumGate;
+        window.closeModal = closeModal;
+
+        // Sledování přihlášení/odhlášení z Firebase
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                appState.loggedIn = true;
+                appState.user.uid = user.uid;
+                appState.user.email = user.email;
+                
+                const docRef = doc(db, "users", user.uid);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    appState.user.name = data.name || 'Cestovatel';
+                    appState.plan = data.plan || 'free';
+                    appState.notif = data.notif !== false;
+                    savedColors = data.savedColors || {};
+                } else {
+                    appState.user.name = document.getElementById('authNameField').value || 'Nový Cestovatel';
+                    await saveUserDataToFirestore();
+                }
+                
+            } else {
+                appState.loggedIn = false;
+                appState.user = { uid: null, name: '', email: '' };
+                appState.plan = 'free';
+                savedColors = {}; 
+            }
+            
+            if (geojsonLayer) {
+                geojsonLayer.eachLayer(layer => geojsonLayer.resetStyle(layer));
+            }
+            syncUIWithState();
+            updateProfileStats();
+        });
+
+        async function saveUserDataToFirestore() {
+            if(!appState.loggedIn) return;
+            try {
+                await setDoc(doc(db, "users", appState.user.uid), {
+                    name: appState.user.name,
+                    email: appState.user.email,
+                    plan: appState.plan,
+                    notif: appState.notif,
+                    savedColors: savedColors
+                }, { merge: true });
+            } catch (e) {
+                showToast('Chyba při ukládání do databáze', '❌');
+            }
+        }
+
+        // --- UI FUNKCE ---
+        function getInitials(name) {
+            if(!name) return "👤";
+            return name.substring(0, 1).toUpperCase();
+        }
+
+        function showToast(messageKey, icon="✅") {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastIcon').innerText = icon;
+            document.getElementById('toastMessage').innerText = uiTranslations[currentLang][messageKey] || messageKey;
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 3000);
+        }
+
+        // --- JAZYKOVÝ SYSTÉM ---
+        let currentLang = 'cs';
+        let authMode = 'login'; 
+
+        const uiTranslations = {
+            'cs': {
+                'premiumBtn': 'Další výhody', 'loginBtn': 'Přihlásit se', 
+                'legendGreen': 'Žiju / Žil jsem', 'legendBlue': 'Navštívil jsem', 'legendRed': 'Wishlist', 
+                'modalGreen': 'Žiju / Žil jsem', 'modalBlue': 'Navštívil jsem', 'modalRedLocked': '🔒 Wishlist', 'modalRedUnlocked': 'Wishlist', 'modalClear': 'Smazat barvu',
+                
+                'loginTitle': 'Vítej zpět!', 'loginSub': 'Přihlas se a ulož si mapu do cloudu.', 
+                'regTitle': 'Začni svou cestu', 'regSub': 'Vytvoř si účet a objevuj svět.', 'regBtn': 'Zaregistrovat se',
+                'noAccount': 'Nemáš účet? Zaregistrovat se', 'hasAccount': 'Už máš účet? Přihlásit se',
+                
+                'planTitle': 'Vyber si svou cestu', 'month': 'měsíc', 'currentPlan': 'Tvůj plán', 'badge': 'NEJOBLÍBENĚJŠÍ',
+                'startTrialText': 'Začít 7 dní zdarma',
+                
+                'freeTitle': 'Základní Mapa', 'freeSub': 'Ideální start pro každého',
+                'featFree1': 'Osobní interaktivní mapa světa', 'featFree2': '2 barevné označení na mapě', 'featFree3': 'Osobní profil cestovatele', 'featFree4': 'Základní statistiky a počítadlo zemí na profilu',
+                
+                'plusSub': 'Pro plánování cest', 'upgradePlusBtn': 'Přejít na Plus',
+                'featPlus1': 'Vše z Free plánu', 'featPlus2': 'Odemyká funkci Wishlist', 'featPlus3': 'Sdílení a propojení map s přáteli', 'featPlus4': 'Neomezené množství přihlášených zařízení',
+                
+                'premSub': 'Ultimátní cestovatelský zážitek', 'upgradePremBtn': 'Přejít na Premium',
+                'featPrem1': 'Vše z Plus plánu', 'featPrem2': 'Společné wishlisty s přáteli', 'featPrem3': 'Tipy na zajímavá místa při přidání země do Wishlistu', 'featPrem4': 'Propoj cesty s live eventy',
+
+                'profName': 'Profil Cestovatele', 'statGreen': 'Žiju / Žil jsem', 'statBlue': 'Navštíveno', 'statRed': 'Wishlist',
+                'profSettings': '⚙️ Nastavení účtu', 'profUpgrade': '⭐ Upgradovat plán', 'profLogout': 'Odhlásit se',
+                
+                'logoutTitle': 'Odhlášení', 'logoutText': 'Opravdu se chceš odhlásit?', 'logoutConfirm': 'Ano, odhlásit', 'logoutCancel': 'Zrušit',
+
+                'profSettingsTitle': 'Nastavení účtu', 'tabAccount': 'Můj účet', 'tabPrefs': 'Předvolby', 'tabBilling': 'Fakturace',
+                'nameLabel': 'Jméno zobrazené na profilu', 'emailLabel': 'E-mailová adresa (pro přihlášení)', 'saveBtn': 'Uložit změny', 'resetPassBtn': 'Resetovat heslo',
+                'prefLang': 'Jazyk aplikace',
+                'prefNotif': 'Upozornění', 'notifEmail': 'Dostávat e-maily o novinkách a tipech na cesty',
+                
+                'currentPlanLabel': 'Aktuální plán: ',
+                'saveSuccess': 'Změny byly uloženy', 'upgradedToast': 'Plán byl úspěšně aktivován! 🎉', 'loginSuccess': 'Úspěšně přihlášeno',
+                'regSuccess': 'Registrace proběhla úspěšně', 'resetPassSent': 'E-mail pro reset hesla byl odeslán!'
+            },
+            'en': {
+                'premiumBtn': 'More Benefits', 'loginBtn': 'Log In', 
+                'legendGreen': 'Live / Lived here', 'legendBlue': 'Visited', 'legendRed': 'Wishlist', 
+                'modalGreen': 'Live / Lived here', 'modalBlue': 'Visited', 'modalRedLocked': '🔒 Wishlist', 'modalRedUnlocked': 'Wishlist', 'modalClear': 'Clear color',
+                
+                'loginTitle': 'Welcome back!', 'loginSub': 'Log in to save your map to cloud.', 
+                'regTitle': 'Start your journey', 'regSub': 'Create an account and explore.', 'regBtn': 'Sign Up',
+                'noAccount': 'Don\'t have an account? Sign Up', 'hasAccount': 'Already have an account? Log In',
+                
+                'planTitle': 'Choose your journey', 'month': 'month', 'currentPlan': 'Current plan', 'badge': 'MOST POPULAR',
+                'startTrialText': 'Start 7-day free trial',
+                
+                'freeTitle': 'Basic Map', 'freeSub': 'Perfect start for everyone',
+                'featFree1': 'Personal interactive world map', 'featFree2': '2 color tags on the map', 'featFree3': 'Personal traveler profile', 'featFree4': 'Basic stats and country counter on profile',
+                
+                'plusSub': 'For trip planning', 'upgradePlusBtn': 'Upgrade to Plus',
+                'featPlus1': 'Everything in Free', 'featPlus2': 'Unlocks Wishlist feature', 'featPlus3': 'Share & link maps with friends', 'featPlus4': 'Unlimited logged-in devices',
+                
+                'premSub': 'Ultimate traveler experience', 'upgradePremBtn': 'Upgrade to Premium',
+                'featPrem1': 'Everything in Plus', 'featPrem2': 'Shared wishlists with friends', 'featPrem3': 'Tips for interesting places', 'featPrem4': 'Link trips to live events',
+
+                'profName': 'Traveler Profile', 'statGreen': 'Live / Lived here', 'statBlue': 'Visited', 'statRed': 'Wishlist',
+                'profSettings': '⚙️ Account settings', 'profUpgrade': '⭐ Upgrade plan', 'profLogout': 'Log out',
+                
+                'logoutTitle': 'Log Out', 'logoutText': 'Are you sure you want to log out?', 'logoutConfirm': 'Yes, log out', 'logoutCancel': 'Cancel',
+
+                'profSettingsTitle': 'Account Settings', 'tabAccount': 'My Account', 'tabPrefs': 'Preferences', 'tabBilling': 'Billing',
+                'nameLabel': 'Display Name', 'emailLabel': 'Email Address (Login)', 'saveBtn': 'Save Changes', 'resetPassBtn': 'Reset Password',
+                'prefLang': 'App Language',
+                'prefNotif': 'Notifications', 'notifEmail': 'Receive emails about updates and travel tips',
+
+                'currentPlanLabel': 'Current Plan: ',
+                'saveSuccess': 'Changes saved successfully', 'upgradedToast': 'Plan activated successfully! 🎉', 'loginSuccess': 'Logged in successfully',
+                'regSuccess': 'Registration successful', 'resetPassSent': 'Password reset email sent!'
+            }
+        };
+
+        const placeholders = { 'cs': {'emailPh': 'E-mailová adresa', 'passPh': 'Tvé heslo', 'namePh': 'Tvé jméno'}, 'en': {'emailPh': 'Email address', 'passPh': 'Your password', 'namePh': 'Your name'} };
+        const countryTranslations = { "Czech Republic": "Česká republika", "Slovakia": "Slovensko", "United States of America": "Spojené státy", "Germany": "Německo", "Poland": "Polsko", "Austria": "Rakousko", "France": "Francie", "Spain": "Španělsko", "Italy": "Itálie", "United Kingdom": "Spojené království", "Vatican": "Vatikán", "Monaco": "Monako", "San Marino": "San Marino", "Liechtenstein": "Lichtenštejnsko", "Andorra": "Andorra", "Malta": "Malta" };
+
+        function setLanguage(lang) { currentLang = lang; updateUILanguage(); }
+
+        function updateUILanguage() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerText = uiTranslations[currentLang][el.getAttribute('data-i18n')]; });
+            document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = placeholders[currentLang][el.getAttribute('data-i18n-ph')]; });
+            document.getElementById('langToggle').innerText = currentLang === 'cs' ? '🇨🇿 CZ' : '🇬🇧 EN';
+            
+            document.getElementById('setLangCs').classList.toggle('active', currentLang === 'cs');
+            document.getElementById('setLangEn').classList.toggle('active', currentLang === 'en');
+
+            if (currentSelectedLayer) {
+                const enName = currentSelectedLayer.feature.properties.ADMIN || currentSelectedLayer.feature.properties.name;
+                document.getElementById('modalTitle').innerText = (currentLang === 'cs' && countryTranslations[enName]) ? countryTranslations[enName] : enName;
+            }
+            syncUIWithState(); 
+        }
+
+        document.getElementById('langToggle').addEventListener('click', () => { setLanguage(currentLang === 'cs' ? 'en' : 'cs'); });
+
+        function syncUIWithState() {
+            if (appState.loggedIn) {
+                document.getElementById('navLoginBtn').classList.add('hidden');
+                document.getElementById('navAvatar').innerText = getInitials(appState.user.name);
+                document.getElementById('profileAvatar').innerText = getInitials(appState.user.name);
+                document.getElementById('profileNameDisplay').innerText = appState.user.name || uiTranslations[currentLang]['profName'];
+            } else {
+                document.getElementById('navLoginBtn').classList.remove('hidden');
+                document.getElementById('navAvatar').innerText = "👤";
+                document.getElementById('profileAvatar').innerText = "👤";
+                document.getElementById('profileNameDisplay').innerText = uiTranslations[currentLang]['profName'];
+            }
+
+            document.getElementById('settingName').value = appState.user.name;
+            document.getElementById('settingEmail').value = appState.user.email;
+            document.getElementById('settingNotif').checked = appState.notif;
+
+            let planName = uiTranslations[currentLang]['freeTitle'];
+            if(appState.plan === 'plus') planName = "Plus";
+            if(appState.plan === 'premium') planName = "Premium";
+
+            const badge = document.getElementById('profilePlanBadge');
+            badge.innerText = planName;
+            badge.className = 'plan-badge-profile';
+            if (appState.plan === 'plus') badge.classList.add('plus');
+            else if (appState.plan === 'premium') badge.classList.add('gold');
+            else badge.classList.add('free');
+
+            document.getElementById('billingPlanName').innerText = uiTranslations[currentLang]['currentPlanLabel'] + planName;
+            
+            document.getElementById('btnPlanFree').innerText = appState.plan === 'free' ? uiTranslations[currentLang]['currentPlan'] : "Free";
+            document.getElementById('btnPlanPlus').innerText = appState.plan === 'plus' ? uiTranslations[currentLang]['currentPlan'] : uiTranslations[currentLang]['upgradePlusBtn'];
+            document.getElementById('btnPlanPremium').innerText = appState.plan === 'premium' ? uiTranslations[currentLang]['currentPlan'] : uiTranslations[currentLang]['upgradePremBtn'];
+            
+            const wishlistBtn = document.getElementById('wishlistBtn');
+            if(appState.plan === 'free') {
+                wishlistBtn.innerText = uiTranslations[currentLang]['modalRedLocked'];
+                wishlistBtn.onclick = triggerPremiumGate;
+                wishlistBtn.style.color = "var(--text-color)";
+                wishlistBtn.style.background = "var(--glass-bg)";
+            } else {
+                wishlistBtn.innerText = uiTranslations[currentLang]['modalRedUnlocked'];
+                wishlistBtn.onclick = () => setCountryColor('red');
+                wishlistBtn.style.color = "white";
+                wishlistBtn.style.background = "var(--color-red)";
+            }
+        }
+
+        // --- FIREBASE AUTENTIZACE ---
+        function toggleAuthMode() {
+            authMode = authMode === 'login' ? 'register' : 'login';
+            if(authMode === 'register') {
+                document.getElementById('authTitle').innerText = uiTranslations[currentLang]['regTitle'];
+                document.getElementById('authSub').innerText = uiTranslations[currentLang]['regSub'];
+                document.getElementById('authSubmitBtn').innerText = uiTranslations[currentLang]['regBtn'];
+                document.getElementById('authToggleLink').innerText = uiTranslations[currentLang]['hasAccount'];
+                document.getElementById('authNameField').classList.remove('hidden');
+            } else {
+                document.getElementById('authTitle').innerText = uiTranslations[currentLang]['loginTitle'];
+                document.getElementById('authSub').innerText = uiTranslations[currentLang]['loginSub'];
+                document.getElementById('authSubmitBtn').innerText = uiTranslations[currentLang]['loginBtn'];
+                document.getElementById('authToggleLink').innerText = uiTranslations[currentLang]['noAccount'];
+                document.getElementById('authNameField').classList.add('hidden');
+            }
+        }
+
+        async function submitAuth() {
+            const email = document.getElementById('authEmailField').value;
+            const password = document.getElementById('authPassField').value;
+            
+            if(!email || !password) {
+                showToast('Vyplňte email i heslo', '⚠️');
+                return;
+            }
+
+            try {
+                if(authMode === 'register') {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                    showToast('regSuccess');
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    showToast('loginSuccess');
+                }
+                closePage('loginPage');
+            } catch (error) {
+                console.error(error);
+                let errMsg = "Chyba přihlášení";
+                if(error.code === 'auth/email-already-in-use') errMsg = "Tento email už je zaregistrovaný.";
+                if(error.code === 'auth/weak-password') errMsg = "Heslo musí mít alespoň 6 znaků.";
+                if(error.code === 'auth/invalid-credential') errMsg = "Špatný email nebo heslo.";
+                showToast(errMsg, '❌');
+            }
+        }
+
+        async function saveUserSettings() {
+            if(!appState.loggedIn) return;
+            appState.user.name = document.getElementById('settingName').value;
+            appState.notif = document.getElementById('settingNotif').checked;
+            await saveUserDataToFirestore();
+            showToast('saveSuccess');
+            syncUIWithState();
+        }
+
+        async function triggerPasswordReset() {
+            if(!appState.loggedIn || !appState.user.email) return;
+            try {
+                await sendPasswordResetEmail(auth, appState.user.email);
+                showToast('resetPassSent', '📧');
+            } catch (error) {
+                showToast('Chyba při odesílání e-mailu', '❌');
+            }
+        }
+
+        async function purchasePlan(planType) {
+            if(!appState.loggedIn) {
+                closePage('premiumPage');
+                openPage('loginPage');
+                return;
+            }
+            appState.plan = planType;
+            await saveUserDataToFirestore();
+            showToast('upgradedToast', '💎');
+            closePage('premiumPage');
+        }
+
+        function requestLogout() {
+            const modal = document.getElementById('logoutModal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('active'), 10); 
+        }
+
+        function confirmLogout() {
+            document.getElementById('logoutModal').classList.remove('active');
+            setTimeout(() => { document.getElementById('logoutModal').style.display = 'none'; }, 300);
+            signOut(auth).then(() => {
+                closePage('profilePage'); 
+                showToast('Odhlášeno', '👋');
+            });
+        }
+
+        function handleAvatarClick() {
+            if(appState.loggedIn) openPage('profilePage');
+            else openPage('loginPage');
+        }
+
+        // --- MAPA ---
+        var bounds = [[-85, -190], [85, 190]]; 
+        var map = L.map('map', { 
+            zoomControl: false, minZoom: 2.5, maxZoom: 10, zoomSnap: 0, wheelPxPerZoomLevel: 60, 
+            maxBounds: bounds, maxBoundsViscosity: 0.75, renderer: L.canvas({ padding: 0.5 }) 
+        }).setView([20, 0], 2.5);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        
+        function getStyle(feature) {
+            const isDark = document.body.classList.contains('dark-mode');
+            const stateName = feature.properties.ADMIN || feature.properties.name;
+            const state = savedColors[stateName];
+            let fillColor = isDark ? '#242426' : '#f9f9f9';
+            if (state === 'green') fillColor = isDark ? '#32d74b' : '#34c759';
+            if (state === 'blue') fillColor = isDark ? '#0a84ff' : '#007aff';
+            if (state === 'red') fillColor = isDark ? '#ff453a' : '#ff3b30';
+            return { fillColor: fillColor, weight: 1.5, opacity: 1, color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)', fillOpacity: 1 };
+        }
+
+        function onEachFeature(feature, layer) {
+            layer.on({
+                mouseover: function(e) {
+                    const isDark = document.body.classList.contains('dark-mode');
+                    const stateName = feature.properties.ADMIN || feature.properties.name;
+                    if (!savedColors[stateName]) e.target.setStyle({ fillColor: isDark ? '#2c2c2e' : '#e5e5ea' });
+                    else e.target.setStyle({ fillOpacity: 0.8 });
+                },
+                mouseout: function(e) { geojsonLayer.resetStyle(e.target); },
+                click: function(e) {
+                    currentSelectedLayer = e.target;
+                    const enName = feature.properties.ADMIN || feature.properties.name;
+                    document.getElementById('modalTitle').innerText = (currentLang === 'cs' && countryTranslations[enName]) ? countryTranslations[enName] : enName;
+                    const modal = document.getElementById('actionModal');
+                    modal.style.display = 'flex'; setTimeout(() => modal.classList.add('active'), 10); 
+                }
+            });
+        }
+
+        fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
+            .then(r => r.json())
+            .then(data => { 
+                geojsonLayer = L.geoJson(data, { style: getStyle, onEachFeature: onEachFeature }).addTo(map); 
+                updateProfileStats(); 
+                syncUIWithState(); 
+            });
+
+        function closeModal(e) {
+            const modal = document.getElementById('actionModal'); modal.classList.remove('active');
+            setTimeout(() => { modal.style.display = 'none'; }, 400); currentSelectedLayer = null;
+        }
+
+        function updateProfileStats() {
+            let lived = 0, visited = 0, wishlist = 0;
+            for (let country in savedColors) {
+                if (savedColors[country] === 'green') lived++;
+                if (savedColors[country] === 'blue') visited++;
+                if (savedColors[country] === 'red') wishlist++;
+            }
+            document.getElementById('statLived').innerText = lived;
+            document.getElementById('statVisited').innerText = visited;
+            document.getElementById('statWishlist').innerText = wishlist;
+        }
+
+        async function setCountryColor(colorType) {
+            if (!currentSelectedLayer) return;
+            if (!appState.loggedIn) {
+                closeModal();
+                openPage('loginPage');
+                showToast('Pro ukládání se přihlas', '🔒');
+                return;
+            }
+
+            const name = currentSelectedLayer.feature.properties.ADMIN || currentSelectedLayer.feature.properties.name;
+            if (colorType === 'clear') delete savedColors[name]; else savedColors[name] = colorType;
+            
+            geojsonLayer.resetStyle(currentSelectedLayer); 
+            updateProfileStats();
+            closeModal();
+            
+            await saveUserDataToFirestore();
+        }
+
+        function triggerPremiumGate() {
+            closeModal();
+            openPage('premiumPage');
+        }
+
+        document.getElementById('themeToggle').addEventListener('click', () => { document.body.classList.toggle('dark-mode'); if (geojsonLayer) geojsonLayer.setStyle(getStyle); });
+
+        const mapWindow = document.getElementById('mapWindow'); const fsBtn = document.getElementById('fsBtn');
+        fsBtn.addEventListener('click', () => {
+            mapWindow.classList.toggle('maximized');
+            if (mapWindow.classList.contains('maximized')) { fsBtn.innerText = '✖'; document.body.style.overflow = 'hidden'; } 
+            else { fsBtn.innerText = '⛶'; document.body.style.overflow = ''; }
+            setTimeout(() => { map.invalidateSize(); }, 400);
+        });
+
+        // --- ZAVÍRÁNÍ A OTEVÍRÁNÍ OKEN ---
+        function openPage(pageId) {
+            document.getElementById(pageId).classList.add('active');
+            document.body.style.overflow = 'hidden'; 
+        }
+
+        function closePage(pageId) {
+            document.getElementById(pageId).classList.remove('active');
+            if(pageId === 'settingsPage') { setTimeout(() => switchTab('tab-account'), 400); }
+            const anyPageActive = document.querySelectorAll('.page-overlay.active').length > 0;
+            const isMapMaximized = document.getElementById('mapWindow').classList.contains('maximized');
+            if (!anyPageActive && !isMapMaximized) document.body.style.overflow = '';
+        }
+
+        function cancelLogout(e) {
+            const modal = document.getElementById('logoutModal');
+            modal.classList.remove('active');
+            setTimeout(() => { modal.style.display = 'none'; }, 400);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`[onclick="switchTab('${tabId}')"]`).classList.add('active');
+        }
+    </script>
+</body>
+</html>
+
