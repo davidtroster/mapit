@@ -445,7 +445,7 @@
   // Import Firebase a Firestore databáze
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
   import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+  import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCN0byuv97OG0HBRKqtoqNuCl7AWwVdUvQ",
