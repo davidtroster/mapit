@@ -445,6 +445,7 @@
   // Import Firebase a Firestore databáze
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
   import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCN0byuv97OG0HBRKqtoqNuCl7AWwVdUvQ",
@@ -458,6 +459,7 @@
   // Inicializace
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const auth = getAuth(app);
   
   // ... tady pak bude pokračovat váš kód pro mapu ...
 
