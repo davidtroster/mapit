@@ -403,7 +403,7 @@
                     <li data-i18n="featFree3">Osobní profil cestovatele</li>
                     <li data-i18n="featFree4">Základní statistiky a počítadlo zemí na profilu</li>
                 </ul>
-                <button class="buy-btn buy-free" id="btnPlanFree" data-i18n="currentPlan">Tvůj plán</button>
+                <button class="buy-btn buy-free interactive-btn" id="btnPlanFree" onclick="purchasePlan('free')" style="cursor: pointer;" data-i18n="currentPlan">Tvůj plán</button>
             </div>
 
             <div class="pricing-card plus">
@@ -445,7 +445,7 @@
   // Import Firebase a Firestore databáze
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
   import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-  import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+  import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCN0byuv97OG0HBRKqtoqNuCl7AWwVdUvQ",
@@ -466,7 +466,7 @@
             loggedIn: false,
             user: { uid: null, name: '', email: '' },
             plan: 'free', 
-            isAdmin: false, // <-- PRIDANÝ ADMIN FLAG
+            isAdmin: false,
             notif: true
         };
         
@@ -579,7 +579,7 @@
                 'planTitle': 'Vyber si svou cestu', 'month': 'měsíc', 'currentPlan': 'Tvůj plán', 'badge': 'NEJOBLÍBENĚJŠÍ',
                 'startTrialText': 'Začít 7 dní zdarma',
                 
-                'freeTitle': 'Základní Mapa', 'freeSub': 'Ideální start pro každého',
+                'freeTitle': 'Základní Mapa', 'freeSub': 'Ideální start pro každého', 'upgradeFreeBtn': 'Přejít na Základní',
                 'featFree1': 'Osobní interaktivní mapa světa', 'featFree2': '2 barevné označení na mapě', 'featFree3': 'Osobní profil cestovatele', 'featFree4': 'Základní statistiky a počítadlo zemí na profilu',
                 
                 'plusSub': 'Pro plánování cest', 'upgradePlusBtn': 'Přejít na Plus',
@@ -614,7 +614,7 @@
                 'planTitle': 'Choose your journey', 'month': 'month', 'currentPlan': 'Current plan', 'badge': 'MOST POPULAR',
                 'startTrialText': 'Start 7-day free trial',
                 
-                'freeTitle': 'Basic Map', 'freeSub': 'Perfect start for everyone',
+                'freeTitle': 'Basic Map', 'freeSub': 'Perfect start for everyone', 'upgradeFreeBtn': 'Downgrade to Basic',
                 'featFree1': 'Personal interactive world map', 'featFree2': '2 color tags on the map', 'featFree3': 'Personal traveler profile', 'featFree4': 'Basic stats and country counter on profile',
                 
                 'plusSub': 'For trip planning', 'upgradePlusBtn': 'Upgrade to Plus',
@@ -686,7 +686,7 @@
             const badge = document.getElementById('profilePlanBadge');
             
             if (appState.isAdmin) {
-                badge.innerText = "ADMIN (" + planName + ")";
+                badge.innerText = "ADMIN"; // Čistý nezávislý odznak
                 badge.className = 'plan-badge-profile';
                 badge.style.background = "var(--color-red)";
                 badge.style.color = "white";
@@ -702,10 +702,12 @@
 
             document.getElementById('billingPlanName').innerText = uiTranslations[currentLang]['currentPlanLabel'] + planName;
             
-            document.getElementById('btnPlanFree').innerText = appState.plan === 'free' ? uiTranslations[currentLang]['currentPlan'] : "Free";
+            // Logika pro překlikávání všech 3 plánů nezávisle
+            document.getElementById('btnPlanFree').innerText = appState.plan === 'free' ? uiTranslations[currentLang]['currentPlan'] : (uiTranslations[currentLang]['upgradeFreeBtn'] || "Přejít na Základní");
             document.getElementById('btnPlanPlus').innerText = appState.plan === 'plus' ? uiTranslations[currentLang]['currentPlan'] : uiTranslations[currentLang]['upgradePlusBtn'];
             document.getElementById('btnPlanPremium').innerText = appState.plan === 'premium' ? uiTranslations[currentLang]['currentPlan'] : uiTranslations[currentLang]['upgradePremBtn'];
             
+            // Logika Wishlistu na základě vybraného plánu (Admini si ho testují kliknutím na plán)
             const wishlistBtn = document.getElementById('wishlistBtn');
             if(appState.plan === 'free') {
                 wishlistBtn.innerText = uiTranslations[currentLang]['modalRedLocked'];
