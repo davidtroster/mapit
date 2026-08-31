@@ -461,13 +461,12 @@
   const db = getFirestore(app);
   const auth = getAuth(app);
   
-  // ... tady pak bude pokračovat váš kód pro mapu ...
-
         // --- STATE MANAGEMENT ---
         let appState = {
             loggedIn: false,
             user: { uid: null, name: '', email: '' },
             plan: 'free', 
+            isAdmin: false, // <-- PRIDANÝ ADMIN FLAG
             notif: true
         };
         
@@ -499,6 +498,11 @@
                 appState.loggedIn = true;
                 appState.user.uid = user.uid;
                 appState.user.email = user.email;
+
+                // --- KONTROLA ADMINA ---
+                const adminEmails = ["dadatroster@gmail.com", "adam.zajda13@gmail.com"];
+                appState.isAdmin = adminEmails.includes(user.email);
+                // -----------------------
                 
                 const docRef = doc(db, "users", user.uid);
                 const docSnap = await getDoc(docRef);
@@ -518,6 +522,7 @@
                 appState.loggedIn = false;
                 appState.user = { uid: null, name: '', email: '' };
                 appState.plan = 'free';
+                appState.isAdmin = false;
                 savedColors = {}; 
             }
             
@@ -677,12 +682,23 @@
             if(appState.plan === 'plus') planName = "Plus";
             if(appState.plan === 'premium') planName = "Premium";
 
+            // --- ZDE JE UPRAVENÝ KÓD PRO ADMIN ODZNAK ---
             const badge = document.getElementById('profilePlanBadge');
-            badge.innerText = planName;
-            badge.className = 'plan-badge-profile';
-            if (appState.plan === 'plus') badge.classList.add('plus');
-            else if (appState.plan === 'premium') badge.classList.add('gold');
-            else badge.classList.add('free');
+            
+            if (appState.isAdmin) {
+                badge.innerText = "ADMIN (" + planName + ")";
+                badge.className = 'plan-badge-profile';
+                badge.style.background = "var(--color-red)";
+                badge.style.color = "white";
+                badge.style.border = "none";
+            } else {
+                badge.style = "";
+                badge.innerText = planName;
+                badge.className = 'plan-badge-profile';
+                if (appState.plan === 'plus') badge.classList.add('plus');
+                else if (appState.plan === 'premium') badge.classList.add('gold');
+                else badge.classList.add('free');
+            }
 
             document.getElementById('billingPlanName').innerText = uiTranslations[currentLang]['currentPlanLabel'] + planName;
             
@@ -927,4 +943,3 @@
     </script>
 </body>
 </html>
-
